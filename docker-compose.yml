@@ -1,0 +1,35 @@
+version: '3.6'
+services:
+  monaserver:
+    image: monaserver/monaserver
+    container_name: monaserver
+    ports:
+    - "1935:1935"
+    - "1935:1935/udp"
+    - "554:554"
+    restart: never
+    networks:
+    - broadcaster_nw
+    volumes:
+    - ./www:/usr/local/bin/www
+  ffmpeg:
+    image: jrottenberg/ffmpeg
+    container_name: ffmpeg
+    depends_on:
+    - "monaserver"
+    environment:
+    - YOUTUBE_STREAM_KEY=$YOUTUBE_STREAM_KEY
+    - TWITCH_STREAM_KEY=$TWITCH_STREAM_KEY
+    restart: unless-stopped
+    command: '-i rtmp://monaserver:1935/live/stream -c:v copy -c:a copy -map 0 -f tee "[f=flv]rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_STREAM_KEY|[f=flv]rtmp://live-sea.twitch.tv/app/$TWITCH_STREAM_KEY"'
+    networks:
+    - broadcaster_nw
+
+networks:
+  broadcaster_nw:
+    name: BroadcasterNetwork
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 10.77.61.0/24

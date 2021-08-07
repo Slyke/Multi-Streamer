@@ -10,6 +10,10 @@
   "license": "ISC",
   "dependencies": {
     "google-auth-library": "^7.0.4",
-    "googleapis": "^72.0.0"
+    "googleapis": "^72.0.0",
+    "passport": "^0.4.1",
+    "passport-oauth": "^1.0.0",
+    "passport-twitch": "^1.0.3",
+    "twitch": "^4.6.5"
   }
 }
