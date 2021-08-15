@@ -13,29 +13,13 @@ const YoutubeAuthoriseService = ({ credentials, version, logger }) => {
 
   retr.init = () => {
     logger.debug('YoutubeAuthoriseService:init()');
-
-    if (!credentials) {
-      throw new Error('No credentials provided');
-    }
-
-    return {
-      authorise: retr.authorise,
-      generateNewToken: retr.generateNewToken,
-      cliEnterGrantCode: retr.cliEnterGrantCode,
-      grantNewToken: retr.grantNewToken
-    };
   };
 
-  retr.createClient = () => {
-    const clientSecret = credentials.installed.client_secret;
-    const clientId = credentials.installed.client_id;
-    const redirectUrl = credentials.installed.redirect_uris[0];
-    const oauth2Client = new OAuth2(clientId, clientSecret, redirectUrl);
-
-    return { oauth2Client };
+  retr.createClient = ({ clientId, clientSecret, redirectUrl }) => {
+    return oauth2Client = new OAuth2(clientId, clientSecret, redirectUrl);
   };
 
-  retr.authorise = ({ oauthClient, token, checkToken }) => {
+  retr.authorise = ({ oauth2Client, token, checkToken }) => {
     return new Promise(async (resolve, reject) => {
       try {
         const oauth2Client = oauthClient ?? retr.createClient().oauth2Client;
@@ -63,11 +47,12 @@ const YoutubeAuthoriseService = ({ credentials, version, logger }) => {
   };
 
   // This needs to be called if scopes change
-  retr.generateNewToken = (oauth2Client) => {
+  retr.generateNewToken = ({ oauth2Client, clientName }) => {
     return new Promise((resolve, reject) => {
       try {
         const authUrl = oauth2Client.generateAuthUrl({
           access_type: 'offline',
+          state: `clientName=${clientName}`,
           scope: ytScopes
         });
 
@@ -81,55 +66,27 @@ const YoutubeAuthoriseService = ({ credentials, version, logger }) => {
     });
   };
 
-  retr.cliEnterGrantCode = () => {
+  retr.grantNewToken = ({ oauth2Client, code }) => {
     return new Promise((resolve, reject) => {
       try {
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout
-        });
-        rl.question('Enter code from webpage: ', (code) => {
-          rl.close();
-          if (code) {
-            return resolve({ code });
-          }
-          const err = new Error('No code entered');
-          return reject({
-            caller: 'YoutubeAuthoriseService::cliEnterGrantCode()',
-            reason: 'No code entered',
-            promise: 'reject',
-            err: JSON.stringify(err, Object.getOwnPropertyNames(err))
-          });
-        });
-      } catch (err) {
-        return reject({
-          caller: 'YoutubeAuthoriseService::cliEnterGrantCode()',
-          err: JSON.stringify(err, Object.getOwnPropertyNames(err))
-        });
-      }
-    });
-  };
-
-  retr.grantNewToken = ({ oauthClient, code }) => {
-    return new Promise((resolve, reject) => {
-      try {
-        return oauthClient.getToken(code, (err, token) => {
+        return oauth2Client.getToken(code, (err, token) => {
           if (err) {
             return reject({
               caller: 'YoutubeAuthoriseService::grantNewToken()',
               reason: '"err" is not null',
-              promise: 'reject',
+              type: 'raised',
               err: JSON.stringify(err, Object.getOwnPropertyNames(err))
             });
           }
 
-          oauthClient.credentials = token;
-          return resolve({ oauth2Client: oauthClient, token });
+          oauth2Client.credentials = token;
+          return resolve({ oauth2Client, token });
         });
       } catch (err) {
         return reject({
           caller: 'YoutubeAuthoriseService::grantNewToken()',
-          err: JSON.stringify(err, Object.getOwnPropertyNames(err))
+          err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
+          type: 'catch'
         });
       }
     });
